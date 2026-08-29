@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cyberwarriornetwork.com/contracts/deployment_snapshot.schema.json",
+  "title": "Coordination Field Assurance Deployment Snapshot",
+  "description": "The measured input to a coordination profile. Every quantity a metric depends on carries an explicit measurement status, because an unmeasured input silently defaulted to zero understates exposure in every case.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "deployment_id", "tenant_id", "window_id", "policy_epoch", "observed_at", "window_hours", "agents", "surfaces", "inputs", "evidence_root"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "deployment_id": {"type": "string", "minLength": 1},
+    "tenant_id": {"type": "string", "minLength": 1},
+    "window_id": {"type": "string", "minLength": 1},
+    "policy_epoch": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "window_hours": {"type": "number", "minimum": 0},
+
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["agent_id", "principal_id", "start_ms", "end_ms"],
+        "properties": {
+          "agent_id": {"type": "string", "minLength": 1},
+          "principal_id": {"type": "string", "minLength": 1},
+          "start_ms": {"type": "integer", "minimum": 0},
+          "end_ms": {"type": "integer", "minimum": 0},
+          "principal_count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Distinct principals observed using this agent identity. Greater than 1 is an identity-binding ambiguity: the model carries one principal per agent, so any value above 1 means the snapshot cannot represent the deployment faithfully and must warn."
+          },
+          "events": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+
+    "surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["surface_id", "surface_class", "readers", "writers", "shared"],
+        "properties": {
+          "surface_id": {"type": "string", "minLength": 1},
+          "surface_class": {"enum": ["cache", "object_store", "filesystem", "structured_store", "queue", "workspace", "metadata", "external", "model_context", "tool_result", "telemetry", "timing", "scheduler", "hardware"]},
+          "class_measured": {"type": "boolean", "description": "False when the class was not derivable and a fallback was reported."},
+          "readers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "writers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+          "shared": {"type": "boolean", "description": "Two or more distinct agents. A surface one agent touches alone carries no coordination exposure."},
+          "events": {"type": "integer", "minimum": 0},
+          "write_events": {"type": "integer", "minimum": 0},
+          "writes_per_writer_hour": {"type": ["number", "null"], "minimum": 0, "description": "Null when no observation window could be established for the surface."},
+          "bits_per_write_upper_bound": {"type": ["number", "null"], "minimum": 0, "description": "Null when write sizes are not recorded. ICB cannot be computed from a null and must not be defaulted to zero."},
+          "read_visibility": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+          "persistence_hours": {"type": ["number", "null"], "minimum": 0},
+          "persistence_class": {"enum": ["ephemeral", "session", "durable", "unknown"]},
+          "persistence_measured": {"type": "boolean", "description": "False when persistence was upper-bounded rather than observed. An upper bound maximises reachability and therefore cannot understate exposure."},
+          "tenants": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "warnings": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+
+    "inputs": {
+      "type": "object",
+      "description": "Measurement status of every quantity the metrics depend on. A metric whose inputs are not all MEASURED or UPPER_BOUNDED must not be emitted as a number.",
+      "additionalProperties": false,
+      "required": ["agent_windows", "reader_writer_sets", "write_rates", "write_sizes", "read_visibility", "surface_persistence", "telemetry_coverage"],
+      "properties": {
+        "agent_windows": {"$ref": "#/$defs/inputStatus"},
+        "reader_writer_sets": {"$ref": "#/$defs/inputStatus"},
+        "write_rates": {"$ref": "#/$defs/inputStatus"},
+        "write_sizes": {"$ref": "#/$defs/inputStatus"},
+        "read_visibility": {"$ref": "#/$defs/inputStatus"},
+        "surface_persistence": {"$ref": "#/$defs/inputStatus"},
+        "telemetry_coverage": {"$ref": "#/$defs/inputStatus"}
+      }
+    },
+
+    "telemetry_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "calibration_id": {"type": ["string", "null"]},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "evidence_root": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+
+  "$defs": {
+    "inputStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["MEASURED", "UPPER_BOUNDED", "NOT_RECORDED", "DEGRADED"],
+          "description": "MEASURED: observed directly. UPPER_BOUNDED: not observed, replaced by a bound that cannot understate exposure. NOT_RECORDED: the system does not emit it; no metric depending on it may be reported. DEGRADED: collection was attempted and failed."
+        },
+        "detail": {"type": "string"},
+        "instrument_needed": {"type": "string", "description": "For NOT_RECORDED, the specific thing an operator must build."}
+      }
+    }
+  }
+}
