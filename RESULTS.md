@@ -138,6 +138,118 @@ default pass.
 
 ---
 
+## Second pass — three more instruments, 28 Aug 2026
+
+The first publication had two instruments. It now has six. See
+[INSTRUMENTS.md](INSTRUMENTS.md) for what each measures and what it must refuse
+to measure.
+
+### Information Capacity Bound
+
+| | |
+|---|---|
+| Write channels observed | 26 |
+| **Capacity floor** | **2.32 bits per write**, max and median |
+| Channels with a *measured* floor of 0 bits | 11 |
+| **Ceiling** | **`NOT_RECORDED`** — permanently |
+| Attribution coverage | `PARTIAL` — 244 of 247 runtime decisions |
+
+The ceiling is the safety-relevant quantity and we cannot produce one: nothing
+records payload size at the write, and an unobserved channel has no finite
+bound. The floor is reported anyway, because it settles the question the
+original single-score approach assumed away — capacity between agents sharing a
+surface is not negligible.
+
+**The floor bounds capacity, never traffic.** log₂(k) upper-bounds what was
+transmitted and lower-bounds what the channel can carry. Reading it the other
+way inverts the inequality.
+
+**Three decisions carry no resource** and cannot be placed on any channel, so
+the floor covers 244 of 247. Three of 247 is a small error. Reporting
+`MEASURED` over a population the instrument had silently shrunk is not, and it
+took an invariant rather than a review to catch it.
+
+### Persistence and Reconstitution Vector
+
+Nine components: **2 measured, 2 partial, 5 not recorded, `scalar_reduction:
+null`.** Reducing PRV to one coefficient needs a calibration dataset and an
+uncertainty interval, and none is bound to this deployment.
+
+| Finding | Measurement |
+|---|---|
+| **Expired permits still marked live** | **156 of 156** past expiry, still status `ISSUED` |
+| **Destruction attestation** | **0 across 5,271 nodes**, five labels, six property conventions |
+| Ambiguous expiry | 16 receipts carry `ttl=0` — either "expires immediately" or "never set" |
+| Retention coverage | 5.4% — 201 of 3,716 receipts carry a TTL at all |
+| Lineage coverage | 5.4% — the same 201 name a parent decision |
+
+Every permit being past expiry while still reading `ISSUED` is the record and
+the clock disagreeing about whether a capability is live. No destruction
+evidence anywhere means a purge claim is currently an assertion by the same
+system that held the data — which is the thing receipts exist to replace.
+
+### Reproduction harness
+
+Two of three behavioural controls now run and hold. **Neither sets a gate**, and
+that is the design: both ran at `LOGIC` scope, and proving an algorithm is not
+proving this deployment is wired to it.
+
+| Control | Result | Basis |
+|---|---|---|
+| Unsigned requests refused | `HELD` (logic) | Empty signature refused; a freshly signed request accepted; the same signature refused when replayed onto another resource |
+| Advisory cannot loosen | `HELD` (logic) | All 60 reachable inputs composed; 0 less restrictive than their base; 3 still tightened |
+| Replay protection | `NOT_EXERCISED` | Needs a write-capable non-production graph |
+
+**A finding we would rather not have published.** The advisory check originally
+ran four hand-picked cases and reported the control holding. None of them
+reached the guard — with enforcement off the composer returns the base
+immediately, and with it on only an `ALLOW` base has an action-changing branch,
+so every `DENY` case fell through to an unconditional return. The base came back
+because nothing tried to change it.
+
+Enumerating the whole input space fixed it and surfaced the true finding: the
+invariant holds **because no branch can produce a looser decision**, not because
+the guard written to prevent one refuses. Across all 60 inputs that guard never
+fires. It is unreachable defence-in-depth, and saying otherwise would credit the
+result to code nothing runs.
+
+That defect was in the instrument built to detect exactly that defect. We are
+publishing it because a standard whose author hides their own instance of the
+failure it names is not a standard.
+
+### Reads are not a snapshot
+
+A receipt count moved from 3,716 to 3,722 between two consecutive queries. The
+graph is live, every figure comes from an independent read, and any metric
+combining two of them inherits that skew. The export now declares
+`read_consistency: NON_ATOMIC` rather than implying a consistent cut.
+
+---
+
+## How the instruments were checked
+
+Eleven defects across three adversarial review rounds, every one verified
+against the code before any fix — one by enumerating an entire input space to
+confirm the claim was genuinely unsupported. A review that came back blocked was
+recorded as a non-pass and rerun rather than counted as clean.
+
+The four that mattered most, all of which understated exposure:
+
+- A per-write figure multiplied by a read-plus-write total — 7.2× too high on
+  one channel.
+- Write rates reported as `MEASURED` when the surface read had returned nothing.
+- A failed window read producing zero hours of persistence, driving reachability
+  toward nothing.
+- A published query plan that could not detect its own drift and omitted four of
+  its six queries. It is now generated by recording what the instruments
+  actually issue, and caught its own regression on the first run.
+
+Every fix carries a regression test that was negative-controlled: the defect
+reintroduced to confirm the test fails, then removed to confirm it passes. One
+existing test was found asserting the very defect it was meant to prevent.
+
+---
+
 ## What this report does not claim
 
 - Not an incident probability
