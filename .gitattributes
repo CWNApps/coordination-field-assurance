@@ -1,0 +1,8 @@
+# Byte-exact storage. SHA256SUMS freezes the sha256 of every file in this
+# package and scripts/verify_manifest.py hashes the WORKING-TREE bytes, so a
+# clone on a machine with core.autocrlf=true would rewrite every file to CRLF
+# and fail the integrity check before anyone had touched anything.
+#
+# `-text` disables newline translation on add and checkout. Do not remove or
+# narrow this without re-freezing SHA256SUMS.
+* -text

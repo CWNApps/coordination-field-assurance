@@ -1,0 +1,19 @@
+{
+  "schema_version":"1.0.0",
+  "current_state":"RESEARCH_ONLY",
+  "gates":[
+    {"id":"G00","name":"cwn_stack_agent_test0_live","required":true,"status":"UNKNOWN"},
+    {"id":"G01","name":"reference_tests","required":true,"status":"PASS"},
+    {"id":"G02","name":"deterministic_experiments","required":true,"status":"PASS"},
+    {"id":"G03","name":"fresh_live_graph_snapshot","required":true,"status":"FAIL"},
+    {"id":"G04","name":"live_migration_log_reconciled","required":true,"status":"FAIL"},
+    {"id":"G05","name":"prior_p0_authorization_fixes","required":true,"status":"UNKNOWN"},
+    {"id":"G06","name":"independent_calibration","required":true,"status":"FAIL"},
+    {"id":"G07","name":"required_event_coverage_99pct","required":true,"status":"FAIL"},
+    {"id":"G08","name":"prospective_shadow_holdout","required":true,"status":"FAIL"},
+    {"id":"G09","name":"base_rate_ppv_fpr_ci","required":true,"status":"FAIL"},
+    {"id":"G10","name":"privacy_legal_tac_review","required":true,"status":"FAIL"},
+    {"id":"G11","name":"rollback_and_human_drill","required":true,"status":"FAIL"},
+    {"id":"G12","name":"no_advisory_authority_path","required":true,"status":"PASS_REFERENCE_ONLY"}
+  ]
+}

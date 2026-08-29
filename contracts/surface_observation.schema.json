@@ -1,0 +1,10 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,
+  "required":["schema_version","event_id","tenant_id","principal_id","agent_id","run_id","surface_id","operation","timestamp","sequence","policy_epoch","collector_id","key_id","signature"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},"event_id":{"type":"string","minLength":1},"tenant_id":{"type":"string","minLength":1},"principal_id":{"type":"string","minLength":1},"agent_id":{"type":"string","minLength":1},"run_id":{"type":"string","minLength":1},
+    "session_id":{"type":["string","null"]},"campaign_id":{"type":["string","null"]},"surface_id":{"type":"string","minLength":1},"operation":{"enum":["read","write","delete","purge","permission_change","bypass","pause","resume"]},
+    "timestamp":{"type":"string","format":"date-time"},"sequence":{"type":"integer","minimum":0},"nonce":{"type":"string"},"size_bits":{"type":["integer","null"],"minimum":0},"symbol_digest":{"type":["string","null"]},
+    "policy_epoch":{"type":"string","minLength":1},"collector_id":{"type":"string","minLength":1},"key_id":{"type":"string","minLength":1},"source_attestation":{"type":["string","null"]},"signature":{"type":"string","minLength":32}
+  }
+}

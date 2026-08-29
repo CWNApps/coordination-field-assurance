@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,
+  "required":["schema_version","calibration_id","dataset_root","generator_version","split_root","metric_version","reviewer_independence","created_at"],
+  "properties":{"schema_version":{"const":"1.0.0"},"calibration_id":{"type":"string"},"dataset_root":{"type":"string"},"generator_version":{"type":"string"},"split_root":{"type":"string"},"metric_version":{"type":"string"},"thresholds":{"type":"object"},"reviewer_independence":{"type":"boolean"},"created_at":{"type":"string","format":"date-time"}}
+}

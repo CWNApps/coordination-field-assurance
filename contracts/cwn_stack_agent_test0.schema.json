@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cyberwarriornetwork.com/schemas/cwn-stack-agent-test0-v1.json",
+  "title": "CWN Stack and Agent Test 0 Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "collected_at", "environment", "evidence_mode", "graph", "agents", "authorization", "receipts", "privacy"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "collected_at": {"type": "string", "format": "date-time"},
+    "environment": {"type": "string", "minLength": 1},
+    "evidence_mode": {"const": "read_only_shadow"},
+    "graph": {
+      "type": "object",
+      "required": ["migration_log_reconciled", "label_counts"],
+      "properties": {
+        "migration_log_reconciled": {"type": ["boolean", "null"]},
+        "label_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}}
+      }
+    },
+    "agents": {
+      "type": "object",
+      "required": ["unique_agent_ids", "run_principal_bindings_complete", "tenant_bindings_complete", "signed_event_coverage", "event_sequence_coverage"],
+      "properties": {
+        "unique_agent_ids": {"type": ["boolean", "null"]},
+        "run_principal_bindings_complete": {"type": ["boolean", "null"]},
+        "tenant_bindings_complete": {"type": ["boolean", "null"]},
+        "signed_event_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "event_sequence_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["unsigned_permits_rejected", "advisory_cannot_overwrite_hard_facts", "research_plane_has_authority"],
+      "properties": {
+        "unsigned_permits_rejected": {"type": ["boolean", "null"]},
+        "advisory_cannot_overwrite_hard_facts": {"type": ["boolean", "null"]},
+        "research_plane_has_authority": {"type": ["boolean", "null"]}
+      }
+    },
+    "receipts": {
+      "type": "object",
+      "required": ["signature_verification_coverage", "replay_protection_enabled", "policy_epoch_bound"],
+      "properties": {
+        "signature_verification_coverage": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "replay_protection_enabled": {"type": ["boolean", "null"]},
+        "policy_epoch_bound": {"type": ["boolean", "null"]}
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["restricted_payloads_excluded"],
+      "properties": {"restricted_payloads_excluded": {"type": ["boolean", "null"]}}
+    }
+  }
+}

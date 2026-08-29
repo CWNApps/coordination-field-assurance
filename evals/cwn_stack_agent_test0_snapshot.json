@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0.0",
+  "collected_at": "2026-08-02T00:00:00Z",
+  "environment": "supplied-cwn-graph-snapshot",
+  "evidence_mode": "read_only_shadow",
+  "graph": {
+    "migration_log_reconciled": null,
+    "label_counts": {
+      "Agent": 119,
+      "AgentRun": 17,
+      "ExecutionPermit": 16,
+      "RoutingDecision": 14,
+      "DecisionTrace": 42,
+      "Intent": 0,
+      "Evidence": 0,
+      "CapabilityManifest": 0,
+      "ModelRun": 0,
+      "ReceiptStream": 0
+    }
+  },
+  "agents": {
+    "unique_agent_ids": null,
+    "run_principal_bindings_complete": null,
+    "tenant_bindings_complete": null,
+    "signed_event_coverage": null,
+    "event_sequence_coverage": null
+  },
+  "authorization": {
+    "unsigned_permits_rejected": null,
+    "advisory_cannot_overwrite_hard_facts": null,
+    "research_plane_has_authority": false
+  },
+  "receipts": {
+    "signature_verification_coverage": null,
+    "replay_protection_enabled": null,
+    "policy_epoch_bound": null
+  },
+  "privacy": {
+    "restricted_payloads_excluded": null
+  }
+}

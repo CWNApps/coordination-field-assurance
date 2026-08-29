@@ -1,0 +1,5 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,
+  "required":["schema_version","receipt_id","tenant_id","scope","requester","approvers","justification","issued_at","not_before","expires_at","policy_epoch","nonce","key_id","signature"],
+  "properties":{"schema_version":{"const":"1.0.0"},"receipt_id":{"type":"string"},"tenant_id":{"type":"string"},"scope":{"type":"object"},"requester":{"type":"string"},"approvers":{"type":"array","minItems":2,"uniqueItems":true,"items":{"type":"string"}},"justification":{"type":"string","minLength":1},"issued_at":{"type":"string","format":"date-time"},"not_before":{"type":"string","format":"date-time"},"expires_at":{"type":"string","format":"date-time"},"policy_epoch":{"type":"string"},"nonce":{"type":"string"},"key_id":{"type":"string"},"signature":{"type":"string"}}
+}

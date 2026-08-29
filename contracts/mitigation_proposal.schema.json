@@ -1,0 +1,8 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema","type":"object","additionalProperties":false,
+  "required":["schema_version","proposal_id","tenant_id","source_profile_root","intervention_type","target_id","expected_delta","utility_constraints","authority"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},"proposal_id":{"type":"string"},"tenant_id":{"type":"string"},"source_profile_root":{"type":"string"},"intervention_type":{"enum":["ttl","rate_limit","partition","read_filter","write_gate","eliminate","review"]},"target_id":{"type":"string"},
+    "expected_delta":{"type":"object"},"utility_constraints":{"type":"array","items":{"type":"string"}},"rollback":{"type":"object"},"authority":{"const":"PROPOSAL_ONLY"}
+  }
+}

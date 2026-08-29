@@ -1,0 +1,8 @@
+{
+  "metric_version":"CFA-0.2.0-research",
+  "metrics":["SDE","TCR","ICB","PRV","CCP","OCE"],
+  "forbidden_claims":["incident_probability","malicious_intent","universal_collusion_detection","automatic_authorization","legal_compliance"],
+  "minimum_telemetry_coverage":0.99,
+  "missing_evidence_state":"UNKNOWN",
+  "authority":"ADVISORY_ONLY"
+}

@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://cwn.example/contracts/surface_snapshot.schema.json",
+  "type":"object","additionalProperties":false,
+  "required":["schema_version","tenant_id","surface_id","surface_class","readers","writers","observed_at","policy_epoch","evidence_root"],
+  "properties":{
+    "schema_version":{"const":"1.0.0"},"tenant_id":{"type":"string","minLength":1},"surface_id":{"type":"string","minLength":1},
+    "surface_class":{"enum":["cache","object_store","filesystem","structured_store","queue","workspace","metadata","external","model_context","tool_result","telemetry","timing","scheduler","hardware"]},
+    "readers":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},"writers":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},
+    "ttl_seconds":{"type":["integer","null"],"minimum":0},"persistence_class":{"enum":["ephemeral","session","durable","unknown"]},
+    "observed_at":{"type":"string","format":"date-time"},"policy_epoch":{"type":"string","minLength":1},"evidence_root":{"type":"string","pattern":"^[a-f0-9]{64}$"},
+    "coverage":{"type":"number","minimum":0,"maximum":1},"purpose":{"type":"string"},"allowed_coordination":{"type":"boolean"}
+  }
+}

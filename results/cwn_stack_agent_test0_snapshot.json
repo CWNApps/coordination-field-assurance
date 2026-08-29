@@ -1,0 +1,89 @@
+{
+  "environment": "supplied-cwn-graph-snapshot",
+  "evidence_mode": "read_only_shadow",
+  "gates": [
+    {
+      "detail": "snapshot_age_hours=636.00; maximum=24.00",
+      "gate_id": "T0-G01",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "read-only shadow mode confirmed",
+      "gate_id": "T0-G02",
+      "state": "PASS"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G03",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G04",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G05",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G06",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G07",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G08",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "research plane has no action authority",
+      "gate_id": "T0-G09",
+      "state": "PASS"
+    },
+    {
+      "detail": "coverage evidence missing",
+      "gate_id": "T0-G10",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "coverage evidence missing",
+      "gate_id": "T0-G11",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "coverage evidence missing",
+      "gate_id": "T0-G12",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G13",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G14",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "evidence missing",
+      "gate_id": "T0-G15",
+      "state": "UNKNOWN"
+    },
+    {
+      "detail": "no observed nodes for: Intent, Evidence, CapabilityManifest, ModelRun, ReceiptStream",
+      "gate_id": "T0-G16",
+      "state": "UNKNOWN"
+    }
+  ],
+  "next_action": "Remain shadow-only; collect missing or fresh evidence before implementation.",
+  "state": "UNKNOWN",
+  "test_id": "CWN-STACK-AGENT-TEST-0"
+}
