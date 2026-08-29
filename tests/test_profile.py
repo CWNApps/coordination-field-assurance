@@ -103,14 +103,27 @@ class ProfileTests(unittest.TestCase):
         self.assertIn("tcr", result.partials)
         self.assertEqual(result.refusal["computed_anyway"]["sde"], result.partials["sde"])
 
-    def test_every_required_metric_can_block_the_profile(self):
-        """Each required metric must be individually capable of refusing."""
+    def test_each_declared_input_can_block_its_metric(self):
+        """Every declared input must individually block its metric, by name.
+
+        The first version disabled only the FIRST input of each metric and
+        asserted only that the profile refused -- so it passed whenever ANY
+        metric refused, and would have survived deleting the per-metric
+        protection entirely. It also assumed each metric had an input unique to
+        it, which is false: SDE and TCR depend on exactly the same three
+        inputs, because SDE is temporally filtered through _surface_edges.
+        """
         for metric in PROFILE_REQUIRED_METRICS:
-            blocking = METRIC_INPUTS[metric][0]
-            inputs = dict(ALL_MEASURED)
-            inputs[blocking] = {"status": "NOT_RECORDED"}
-            result = compute_profile(snapshot(inputs=inputs))
-            self.assertFalse(result.emitted, f"{metric} via {blocking} should have refused")
+            for blocking in METRIC_INPUTS[metric]:
+                inputs = dict(ALL_MEASURED)
+                inputs[blocking] = {"status": "NOT_RECORDED"}
+                result = compute_profile(snapshot(inputs=inputs))
+                self.assertFalse(result.emitted,
+                                 f"{metric} must refuse when {blocking} is unrecorded")
+                self.assertIn(metric, result.refusal["unmet_metrics"],
+                              f"{metric} must be named unmet when {blocking} is missing")
+                self.assertNotIn(metric, result.partials,
+                                 f"{metric} must be absent, not computed from a default")
 
     # ---------------------------------------------------------- no silent defaults
 
@@ -200,6 +213,96 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(d.surfaces[0].writers, frozenset({"a"}))
         self.assertEqual(d.surfaces[0].readers, frozenset({"b"}))
         self.assertEqual({a.agent_id for a in d.agents}, {"a", "b"})
+
+
+class UnitAndContractTests(unittest.TestCase):
+    """Regressions for defects an adversarial review found after the first build."""
+
+    def test_agent_windows_are_converted_from_milliseconds_to_hours(self):
+        """AgentWindow.start/end share a unit with Surface.persistence_hours.
+
+        _surface_edges computes `writer.end + persistence_hours`. The snapshot
+        carries epoch MILLISECONDS. Passing those through unconverted made a
+        4,005-HOUR persistence bound behave like 4,005 milliseconds beside epoch
+        timestamps -- about four seconds -- silently collapsing reachability
+        instead of bounding it upward. The bound I claimed could only overstate
+        exposure was in fact destroying it.
+        """
+        snap = snapshot()
+        snap["agents"] = [
+            {"agent_id": "a", "principal_id": "p1", "start_ms": 1_700_000_000_000,
+             "end_ms": 1_700_000_000_000 + 2 * 3_600_000},
+            {"agent_id": "b", "principal_id": "p2", "start_ms": 1_700_000_000_000,
+             "end_ms": 1_700_000_000_000 + 2 * 3_600_000},
+        ]
+        d = to_deployment(snap)
+        starts = sorted(a.start for a in d.agents)
+        ends = sorted(a.end for a in d.agents)
+        self.assertEqual(starts[0], 0.0, "windows must be anchored at the earliest activity")
+        self.assertAlmostEqual(ends[-1], 2.0, places=6,
+                               msg="a two-hour span must arrive as 2.0 hours, not 7.2e6")
+
+    def test_epoch_timestamps_do_not_defeat_the_persistence_bound(self):
+        """End to end: with real epoch inputs the edge must still be found."""
+        base = 1_700_000_000_000
+        snap = snapshot()
+        snap["agents"] = [
+            {"agent_id": "a", "principal_id": "p1", "start_ms": base, "end_ms": base + 3_600_000},
+            {"agent_id": "b", "principal_id": "p2", "start_ms": base + 7_200_000,
+             "end_ms": base + 10_800_000},
+        ]
+        snap["window_hours"] = 3.0
+        snap["surfaces"][0]["persistence_hours"] = 3.0
+        result = compute_profile(snap)
+        self.assertTrue(result.emitted)
+        self.assertEqual(result.profile["sde"], 1,
+                         "b reads two hours after a writes, within a three-hour bound")
+
+    def test_sde_declares_its_persistence_dependency(self):
+        """SDE runs through _surface_edges, so it is temporally filtered."""
+        self.assertIn("surface_persistence", METRIC_INPUTS["sde"])
+        inputs = dict(ALL_MEASURED)
+        inputs["surface_persistence"] = {"status": "NOT_RECORDED"}
+        result = compute_profile(snapshot(inputs=inputs))
+        self.assertNotIn("sde", result.partials,
+                         "unmeasured persistence must not reach a reported SDE")
+
+    def test_non_finite_metric_refuses_rather_than_emitting(self):
+        """NaN defeats the dataclass range checks: every comparison with it is false."""
+        snap = snapshot()
+        snap["surfaces"][0]["bits_per_write_upper_bound"] = float("inf")
+        result = compute_profile(snap)
+        self.assertFalse(result.emitted, "an infinite ICB is not a conforming profile")
+        self.assertTrue(any("finite" in v for v in result.refusal["contract_violations"]))
+
+    def test_non_string_identifier_refuses(self):
+        result = compute_profile(snapshot(window_id=42))
+        self.assertFalse(result.emitted)
+        self.assertTrue(any("window_id" in v for v in result.refusal["contract_violations"]))
+
+    def test_out_of_range_coverage_refuses(self):
+        """Refused either by the dataclass guard or by the contract check.
+
+        Deployment.__post_init__ rejects coverage outside [0,1] before the
+        contract validator ever sees it, so the refusal arrives as a modelling
+        failure rather than a contract violation. Both are correct refusals and
+        the test accepts either -- asserting one specific path would make this
+        test about the route rather than the outcome.
+        """
+        result = compute_profile(snapshot(telemetry_coverage=1.5))
+        self.assertFalse(result.emitted, "coverage above 1.0 must never produce a profile")
+        blob = " ".join(
+            [result.refusal.get("reason", "")] + result.refusal.get("contract_violations", [])
+        ).lower()
+        self.assertIn("coverage", blob, f"the refusal must implicate coverage: {result.refusal}")
+
+    def test_duplicate_agent_id_becomes_a_refusal_not_a_crash(self):
+        """models.Deployment raises on duplicates; that must not lose the warnings."""
+        snap = snapshot()
+        snap["agents"].append(dict(snap["agents"][0]))
+        result = compute_profile(snap)
+        self.assertFalse(result.emitted)
+        self.assertIn("could not be modelled", result.refusal["reason"])
 
 
 if __name__ == "__main__":

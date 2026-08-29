@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -53,8 +54,13 @@ USABLE = {"MEASURED", "UPPER_BOUNDED"}
 
 # Which snapshot inputs each metric depends on. A metric is emitted only when
 # every one of its inputs is MEASURED or UPPER_BOUNDED.
+# SDE looks structural and is not: structural_directed_pairs() goes through
+# potential_edges() -> _surface_edges(), which drops any edge whose read falls
+# outside `writer.end + persistence_hours`. So SDE is temporally filtered and
+# depends on persistence exactly as TCR does. Declaring only the obvious inputs
+# let an unmeasured persistence reach a reported SDE.
 METRIC_INPUTS: dict[str, tuple[str, ...]] = {
-    "sde": ("agent_windows", "reader_writer_sets"),
+    "sde": ("agent_windows", "reader_writer_sets", "surface_persistence"),
     "tcr": ("agent_windows", "reader_writer_sets", "surface_persistence"),
     "icb_bits_upper_bound": ("reader_writer_sets", "write_rates", "write_sizes", "read_visibility"),
     "ccp": ("reader_writer_sets", "write_rates", "read_visibility", "surface_persistence"),
@@ -100,14 +106,28 @@ def to_deployment(snapshot: dict) -> Deployment:
     refused any metric that depends on them. `_blocking_inputs` is what
     enforces that; this function does not re-check it.
     """
+    # UNITS. AgentWindow.start/end are HOURS -- the same unit as
+    # Surface.persistence_hours, because _surface_edges computes
+    # `writer.end + persistence_hours` and compares it against a read time.
+    # The snapshot carries epoch MILLISECONDS. Passing those through unconverted
+    # made a 4,005-hour persistence bound behave like 4,005 milliseconds beside
+    # epoch timestamps -- roughly four seconds -- which silently collapsed
+    # reachability instead of bounding it upward. Convert once, here, anchored
+    # at the earliest observed activity so the numbers stay small and readable.
+    raw = list(snapshot.get("agents", []))
+    origin_ms = min((a["start_ms"] for a in raw), default=0)
+
+    def _hours(ms: Any) -> float:
+        return (float(ms) - float(origin_ms)) / 3_600_000.0
+
     agents = tuple(
         AgentWindow(
             agent_id=a["agent_id"],
             principal_id=a["principal_id"],
-            start=float(a["start_ms"]),
-            end=float(a["end_ms"]),
+            start=_hours(a["start_ms"]),
+            end=_hours(a["end_ms"]),
         )
-        for a in snapshot.get("agents", [])
+        for a in raw
     )
     surfaces = tuple(
         Surface(
@@ -153,7 +173,24 @@ def compute_profile(snapshot: dict) -> ProfileResult:
                 "carries one principal per agent, so this snapshot cannot represent it faithfully"
             )
 
-    deployment = to_deployment(snapshot)
+    try:
+        deployment = to_deployment(snapshot)
+    except Exception as exc:
+        # models.Deployment rejects duplicate agent ids, and a malformed agent
+        # or surface entry raises here too. A raise would lose the warnings
+        # collected above, so it becomes a refusal that carries them.
+        return ProfileResult(
+            emitted=False,
+            refusal={
+                "schema_version": SCHEMA_VERSION,
+                "metric_version": METRIC_VERSION,
+                "deployment_id": str(snapshot.get("deployment_id")),
+                "refused": True,
+                "reason": f"snapshot could not be modelled: {type(exc).__name__}: {exc}",
+                "warnings": sorted(set(warnings)),
+            },
+            warnings=tuple(sorted(set(warnings))),
+        )
 
     computed: dict[str, Any] = {}
     blocked: dict[str, list[str]] = {}
@@ -210,6 +247,28 @@ def compute_profile(snapshot: dict) -> ProfileResult:
         return ProfileResult(emitted=False, refusal=refusal, partials=computed,
                              warnings=tuple(sorted(set(warnings))))
 
+    # The contract types every identifier as a string and every metric as a
+    # finite number in range. Nothing upstream guarantees that, and NaN defeats
+    # the dataclass range checks because every comparison with NaN is false --
+    # so an unvalidated NaN would reach the profile and violate JSON itself.
+    invalid = _contract_violations(snapshot, computed)
+    if invalid:
+        return ProfileResult(
+            emitted=False,
+            refusal={
+                "schema_version": SCHEMA_VERSION,
+                "metric_version": METRIC_VERSION,
+                "deployment_id": str(snapshot.get("deployment_id")),
+                "refused": True,
+                "reason": "computed values do not conform to the exposure profile contract",
+                "contract_violations": invalid,
+                "computed_anyway": {k: v for k, v in computed.items() if _finite(v)},
+                "warnings": sorted(set(warnings)),
+            },
+            partials=computed,
+            warnings=tuple(sorted(set(warnings))),
+        )
+
     body = {
         "schema_version": SCHEMA_VERSION,
         "metric_version": METRIC_VERSION,
@@ -233,6 +292,37 @@ def compute_profile(snapshot: dict) -> ProfileResult:
     ).hexdigest()
     return ProfileResult(emitted=True, profile=body, partials=computed,
                          warnings=tuple(sorted(set(warnings))))
+
+
+def _finite(value: Any) -> bool:
+    """True only for a real, finite number. NaN and inf are neither."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return math.isfinite(value)
+
+
+def _contract_violations(snapshot: dict, computed: dict) -> list[str]:
+    """Everything that would make the emitted profile non-conforming."""
+    bad: list[str] = []
+    for key in ("deployment_id", "window_id", "policy_epoch", "tenant_id"):
+        value = snapshot.get(key)
+        if not isinstance(value, str) or not value:
+            bad.append(f"{key} must be a non-empty string, got {type(value).__name__}")
+    for key in ("sde", "tcr", "icb_bits_upper_bound"):
+        if key in computed and not _finite(computed[key]):
+            bad.append(f"{key} is not a finite number ({computed[key]!r})")
+    if "ccp" in computed and not _finite(computed["ccp"]):
+        bad.append(f"ccp is not a finite number ({computed['ccp']!r})")
+    tcr = computed.get("tcr")
+    if _finite(tcr) and not (0.0 <= tcr <= 1.0):
+        bad.append(f"tcr must be within [0,1], got {tcr}")
+    coverage = snapshot.get("telemetry_coverage")
+    if coverage is not None and (not _finite(coverage) or not (0.0 <= coverage <= 1.0)):
+        bad.append(f"telemetry_coverage must be null or within [0,1], got {coverage!r}")
+    sde = computed.get("sde")
+    if sde is not None and (not isinstance(sde, int) or isinstance(sde, bool) or sde < 0):
+        bad.append(f"sde must be a non-negative integer, got {sde!r}")
+    return bad
 
 
 def _prv(snapshot: dict) -> dict:
