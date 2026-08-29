@@ -178,7 +178,7 @@ uncertainty interval, and none is bound to this deployment.
 | Finding | Measurement |
 |---|---|
 | **Expired permits still marked live** | **156 of 156** past expiry, still status `ISSUED` |
-| **Destruction attestation** | **0 across 5,271 nodes**, five labels, six property conventions |
+| **Destruction attestation** | **0 across 4,817 nodes**, five labels, six property conventions |
 | Ambiguous expiry | 16 receipts carry `ttl=0` — either "expires immediately" or "never set" |
 | Retention coverage | 5.4% — 201 of 3,716 receipts carry a TTL at all |
 | Lineage coverage | 5.4% — the same 201 name a parent decision |
@@ -216,6 +216,41 @@ result to code nothing runs.
 That defect was in the instrument built to detect exactly that defect. We are
 publishing it because a standard whose author hides their own instance of the
 failure it names is not a standard.
+
+### Correction, 2026-08-29: a denominator we published and had not measured
+
+An earlier version of this document reported **zero destruction attestation across
+5,271 nodes**. That denominator was wrong. Four of its five components were
+measured. The fifth — a decision population of 1,163 — was never queried. It was
+typed into a source literal beside the four real figures, inherited their
+credibility, and travelled into this document, a wiki entry, a report and three
+commit messages.
+
+The live value is **637**. The true scope is **4,817 nodes**.
+
+**The finding did not change.** Every destruction property was zero on every
+label, and remains zero on re-measurement. What was false was the claim about how
+much had been inspected — a denominator nobody could check, which is the exact
+defect this standard was written to name, committed by its author in the document
+announcing it.
+
+**What now makes it catchable.** The graph is append-only, so for any label a
+committed population that *exceeds* the live one cannot be drift; it can only mean
+the number was never measured against that database. 1,163 against 637 fails that
+test immediately. Growth in the other direction is ordinary and is reported as
+drift rather than error — one receipt count moved from 3,716 to 3,790 during a
+single session, and a check that failed on ordinary growth would be switched off
+within a week, taking the fabrication case with it.
+
+Equality is reported as consistent, and the output says in words that equality
+proves nothing on its own: two numbers agreeing is equally consistent with both
+being copied from the same mistake. Only the impossible direction is evidence. A
+label that could not be read is not a pass — "could not compare" and "agrees" must
+not share an outcome.
+
+The check was negative-controlled against live production, not only in tests: the
+corrected file passes, and the file exactly as it had been committed fails on the
+one fabricated label.
 
 ### Reads are not a snapshot
 
