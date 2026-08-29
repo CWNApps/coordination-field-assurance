@@ -10,6 +10,25 @@ import argparse
 import hashlib
 from pathlib import Path
 
+def _excluded(p: Path) -> bool:
+    """Files that are not package content.
+
+    `.git/` only appears when this package IS the repository root, which is the
+    case for the public distribution and was NOT the case where these scripts
+    were written -- so a fresh clone failed the integrity check on git's own
+    metadata. Dotfiles that ARE content (.gitattributes, .gitignore) stay in the
+    manifest; .gitattributes especially, since it is what keeps these hashes
+    valid on checkout.
+    """
+    parts = p.parts
+    return (
+        "__pycache__" in parts
+        or p.suffix == ".pyc"
+        or ".git" in parts
+        or ".pytest_cache" in parts
+    )
+
+
 ROOT=Path(__file__).resolve().parents[1]
 DEFAULT_OUT=ROOT/"SHA256SUMS"
 
@@ -20,7 +39,7 @@ def freeze(out: Path) -> int:
     out=out.resolve()
     rows=[]
     for p in sorted(ROOT.rglob("*")):
-        if not p.is_file() or p==DEFAULT_OUT or p==out or "__pycache__" in p.parts or p.suffix==".pyc": continue
+        if not p.is_file() or p==DEFAULT_OUT or p==out or _excluded(p): continue
         rows.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.relative_to(ROOT).as_posix()}")
     # newline="\n": SHA256SUMS is compared byte for byte across platforms.
     out.write_text("\n".join(rows)+"\n",encoding="utf-8",newline="\n")

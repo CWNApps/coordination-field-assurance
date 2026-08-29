@@ -27,8 +27,21 @@ def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
 
 
 def covered(p: Path) -> bool:
-    """Same exclusion rule as freeze_manifest.py."""
-    return p.is_file() and p != MANIFEST and "__pycache__" not in p.parts and p.suffix != ".pyc"
+    """Same exclusion rule as freeze_manifest.py.
+
+    `.git/` matters here: this package is the repository root in its public
+    distribution, so without excluding it a fresh clone reports git's own
+    metadata as unlisted files and fails the integrity check.
+    """
+    if not p.is_file() or p == MANIFEST:
+        return False
+    parts = p.parts
+    return not (
+        "__pycache__" in parts
+        or p.suffix == ".pyc"
+        or ".git" in parts
+        or ".pytest_cache" in parts
+    )
 
 
 def main():
