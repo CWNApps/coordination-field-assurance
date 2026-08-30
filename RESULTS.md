@@ -13,7 +13,8 @@ measurement.
 
 ## Test 0 — the substrate gate
 
-**Result: `UNKNOWN` (exit 3) — 6 pass · 10 unknown · 0 fail**
+**Result: `FAIL` (exit 4) — 9 pass · 3 fail · 4 unknown**  
+*(first run, 2026-08-28: `UNKNOWN` — 6 pass · 10 unknown · 0 fail. The state got worse because the measuring got better; see the third pass below.)*
 
 | | |
 |---|---|
@@ -282,6 +283,114 @@ The four that mattered most, all of which understated exposure:
 Every fix carries a regression test that was negative-controlled: the defect
 reintroduced to confirm the test fails, then removed to confirm it passes. One
 existing test was found asserting the very defect it was meant to prevent.
+
+---
+
+## Third pass — the unknowns resolve, 2026-08-30
+
+**`UNKNOWN` (6 pass / 10 unknown / 0 fail) → `FAIL` (9 pass / 3 fail / 4 unknown).**
+
+The overall state got worse. That is the point of the exercise. Zero failures
+never meant the system was sound — it meant almost nothing had been measured, and
+a report that cannot fail is not a measurement. Six gates moved out of "nobody
+looked", and three of them landed on "looked, and it does not hold".
+
+| | Before | After |
+|---|---|---|
+| PASS | 6 | **9** |
+| FAIL | 0 | **3** |
+| UNKNOWN | 10 | **4** |
+
+### Three behavioural gates now pass at deployment scope
+
+These are claims about what a system *does*. No query answers them, and asserting
+one from a code reading credits the claim to a field rather than to a verified
+leg. Each was reproduced against a **disposable graph** — the harness refuses any
+non-loopback target by allowlist, because two of these reproductions drop schema
+constraints or write signing keys.
+
+Only a deployment-scope result may set a gate. Proving an algorithm correct and
+proving *this deployment enforces it* are different claims, and a gate asserts
+the second.
+
+**Replay protection.** With the uniqueness constraint installed, a permit was
+claimed once and the replay refused as `already_claimed`. With the constraint
+**dropped**, the claim refused outright as `constraint_not_installed` — so the
+code **fails closed** rather than proceeding unprotected. The first negative
+control expected the replay to *succeed* without the constraint; it does not, and
+fail-closed is the stronger property. A control that behaves identically with and
+without its mechanism has not been shown to depend on it.
+
+**Unsigned rejection.** Unsigned refused; a freshly signed request accepted
+through the real registry; the same signature refused against a different
+resource; and — the leg that makes this deployment scope rather than logic scope
+— with the registry record **deleted**, that same good signature failed as
+`not_registered`. Without that, the key could have come from anywhere.
+
+**Advisory cannot overwrite authorization.** Driven through the real decision
+path with the composer untouched: a DENY meeting an ESCALATE verdict stayed DENY,
+and an ALLOW meeting the same verdict tightened to ESCALATE. The tightening case
+carries the result. Without it, an unchanged DENY is equally consistent with the
+composer never having been consulted — the base action comes back unchanged
+either way.
+
+### Two gates were unbuilt, not unanswerable — and both fail
+
+**Migration reconciliation.** 182 migration files on disk; the registry holds two
+records in two incompatible shapes, recording roughly 48 distinct migrations.
+
+An unrecorded migration is **not** an unapplied one. This registry is known to
+misreport long-applied migrations as pending, so absence from it proves nothing
+about the database. What is measured, and all that is measured, is that the log
+and the on-disk set do not reconcile.
+
+**Tenant bindings.** 245 of 247 runtime decisions carry a tenant; two do not.
+Reported beside it and never averaged in: 125 agent records carry none at all.
+Those are different questions and folding them together would hide the second.
+
+### A finding we published and had to retract
+
+We reported that the constraint the single-use defence depends on was **not
+installed**. It is. The search was for a label named only by a **stale code
+comment**; the real constraint sits on a different label, and production has it.
+The test fixtures used the wrong label too, so they agreed with the bug and
+passed.
+
+A guessed identifier returns a plausible wrong answer, not an error. The fix was
+not a better string: the assurance layer now **parses the identifier out of the
+source that owns it** rather than keeping a second copy, and a test fails if the
+two ever drift.
+
+That is the second denominator-or-identifier retraction in this document. Both
+are published for the same reason — a standard whose author hides their own
+instances of the failure it names is not a standard.
+
+### Reproductions are bound to the source they exercised
+
+A reproduction is a committed artifact that sets a gate. Nothing tied it to the
+code it ran against, so one recorded weeks ago would keep vouching for a
+verifier, a composer or a claim path that had since changed — provenance credited
+to a field, arriving by the back door.
+
+Each now carries a digest of exactly the sources it exercises. Changed, missing
+or unreadable all degrade. A digest of content, not a timestamp: "when was this
+recorded" is not the question.
+
+### The four remaining unknowns are terminal by principle
+
+They are not unfinished work, and no instrument will close them.
+
+- **Signature verification coverage** — verifying a signature requires key
+  material the measuring layer must not hold. A layer that can verify can forge.
+  Permanently null by design.
+- **Two retired gates** — an adversarial review found that the instruments
+  designed for them would have reported values fixed before the query ran. One
+  defined its numerator against a deliberately empty set; the other set numerator
+  and denominator in the same clause, giving a ratio of 1.0 forever. Building
+  them would have produced green lights wired to nothing.
+- **Restricted payload classes** — a classification judgment about what counts as
+  restricted. No instrument decides that. It needs a named human, and the
+  decision recorded with its author.
 
 ---
 
